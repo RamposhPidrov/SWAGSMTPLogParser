@@ -22,33 +22,56 @@ class logDF():
 
     def process_wrapper(self, lineByte, path):
         with open(path, 'r+') as f:
-            f.seek(lineByte)
-            line = f.readline()
-            reg = re.search(r"(\d{2}/\d{2}/\d{2} \d\d:\d\d:\d\d)(?!\s\d)(.+)(?<=\d\s)(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})(\s{2})?(?(4)|\s([A-Z]{4})\s([^\s]{4,}))(\s)?(?(7) ((.)+(?!\d)) | *)\s(.{1,})(?<!\d)(\d{1,})\s(\d{1,})\s((.)+)", line)
-            try:
-                return {i : reg.group(i) for i in range(1, 14)}
+            try: 
+                f.seek(lineByte)
+                line = f.readline()
+                reg = re.search(r"(\d{2}/\d{2}/\d{2} \d\d:\d\d:\d\d)(?!\s\d)(.+)(?<=\d\s)(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})(\s{2})?(?(4)|\s([A-Z]{4})\s([^\s]{4,}))(\s)?(?(7) ((.)+(?!\d)) | *)\s(.{1,})(?<!\d)(\d{1,})\s(\d{1,})\s((.)+)", line)
+                try:
+                    return {i : reg.group(i) for i in range(1, 14)}
+                except:
+                    return None
             except:
-                pass
+                return None
 
     def run_parser(self, path='SMTP.log'):
         filelist = []
-        
+        fil = lambda a: a != None
         try: 
-            filelist = glob.glob(str.format('{0}\\*', path))
+            parsed = glob.glob(str.format('.\\{0}\\*', 'CSV'))
+            print(parsed)
+            filelist = filter(lambda x: str.format(".\\CSV\\{0}{1}", os.path.basename(x), '.csv') not in parsed,  
+                                    glob.glob(str.format('{0}\\*', path)))
         except:
             filelist.append(path)
         for fi in filelist:
             print('Parse file', fi)
-            pool = mp.Pool(mp.cpu_count())
+            pool = mp.Pool(2)#mp.cpu_count())
             jobs = []
             with open(fi, 'rb+') as f:
+                print(os.path.basename(f.name))
                 nextLineByte = f.tell()
                 for line in f:
                     jobs.append(pool.apply_async(self.process_wrapper, [nextLineByte, fi]))
                     nextLineByte = f.tell()   
-            self.buffer = filter(lambda a: a != None, [job.get() for job in jobs])
+            self.__buffer = filter(fil, [job.get() for job in jobs])
             pool.close()
-            self.appendDF()    
+            tmp = pd.DataFrame(self.__buffer)
+            for i in [4, 7, 8, 9]:
+                del tmp[i]
+            self.df = tmp.copy()
+            del tmp
+            
+            self.__buffer = []
+            #self.appendDF()   
+            self.saveSCV(os.path.basename(f.name))
+            self.df = None
+            #self.dFrame = pd.DataFrame()# self.dFrame()
+
+    def concatDF(self, df):
+        if (len(self.dFrame) == 0):
+            self.df = pd.DataFrame(df)
+        else:
+            self.dFrame.append(df, ignore_index=True)
 
     def appendDF(self):
         tmp = pd.DataFrame(self.buffer)
@@ -61,6 +84,8 @@ class logDF():
         print(self.dFrame)
         self.__buffer = []
 
+    def saveSCV(self, fname):
+        self.dFrame.to_csv(str.format('./CSV/{0}.csv', fname), sep='&', encoding='utf-8')
 
     def nicePrint(self, regmatch):
         print(str.format("Time {0}", regmatch.group(1)))
