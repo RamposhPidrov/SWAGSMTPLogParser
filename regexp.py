@@ -1,24 +1,19 @@
 import re
 import pandas as pd
 from tqdm import tqdm
-
 import os
 import multiprocessing as mp
 
 class logDF():
-    buffer = None
+    __buffer = None
 
-    def __init__(self, path):
+    def __init__(self, dir=None):
         self.df = pd.DataFrame()
-        
-        self.buffer = []
-        #self.run_multiprocess(path)
-        self.run_mp(path)
-        self.appendDF()
-        #print(self.df)
-        #for i in path:
-            #self.loadPandas(i)
-        #    self.parseLogFile(i)            
+        self.__buffer = []
+        if dir:
+            self.run_parser(path=dir) 
+        else:
+            self.run_parser()   
 
     @property
     def dFrame(self):
@@ -28,29 +23,30 @@ class logDF():
         with open(path, 'r+') as f:
             f.seek(lineByte)
             line = f.readline()
-            
-            reg = re.search(r"(\d{2}/\d{2}/\d{2} \d\d:\d\d:\d\d)(?!\s\d)(.+)(?<=\d\s)(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})(\s{2})?(?(4)|\s([A-Z]{4})\s([^\s]{4,}))(\s)?(?(7) ((.)+(?!\d)) | *)\s(.{1,})(?<!\d)(\d{1,})\s(\d{1,})\s((.)+)" , line)
+            reg = re.search(r"(\d{2}/\d{2}/\d{2} \d\d:\d\d:\d\d)(?!\s\d)(.+)(?<=\d\s)(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})(\s{2})?(?(4)|\s([A-Z]{4})\s([^\s]{4,}))(\s)?(?(7) ((.)+(?!\d)) | *)\s(.{1,})(?<!\d)(\d{1,})\s(\d{1,})\s((.)+)", line)
             try:
                 return {i : reg.group(i) for i in range(1, 14)}
             except:
                 pass
 
-    def run_mp(self, path):
-        pool = mp.Pool(mp.cpu_count())
-        jobs = []
-        with open(path, 'rb+') as f:
-            nextLineByte = f.tell()
-            for line in f:
-                #print(nextLineByte)
-                jobs.append(pool.apply_async(self.process_wrapper, [nextLineByte, path]))
-                
-                #print(type(jobs[0]))
+    def run_parser(self, path='SMTP.log'):
+        filelist = []
+        try: 
+            filelist = [str.format('{0}/{1}', path, filename) for filename in os.listdir(path)]
+        except:
+            filelist.append(path)
+        for fi in filelist:
+            print('Parse file', fi)
+            pool = mp.Pool(mp.cpu_count())
+            jobs = []
+            with open(fi, 'rb+') as f:
                 nextLineByte = f.tell()
-        
-        self.buffer = [job.get() for job in jobs]
-        pool.close()
-        #print(self.buffer)
-        
+                for line in f:
+                    jobs.append(pool.apply_async(self.process_wrapper, [nextLineByte, path]))
+                    nextLineByte = f.tell()   
+            self.buffer = filter(lambda a: a != None, [job.get() for job in jobs])
+            pool.close()
+            self.appendDF()    
 
     def appendDF(self):
         tmp = pd.DataFrame(self.buffer)
@@ -59,28 +55,16 @@ class logDF():
         if (len(self.dFrame) == 0):
             self.df = pd.DataFrame(tmp)
         else:
-            
             self.dFrame.append(tmp, ignore_index=True)
-
         self.buffer = []
 
-    def run_multiprocess(self, path):
-        tasks = []
-
-        for filename in os.listdir(path):
-            tasks.append(str.format('./1/{0}',filename))
-            print('Create task', filename)
-
-        pool = mp.Pool(2)
-        result = all(list(pool.imap_unordered(self.parseLogFile, tasks)))
 
     def nicePrint(self, regmatch):
         print(str.format("Time {0}", regmatch.group(1)))
-        #print(str.format("Time {0} IP {1:<16} Type {2} Content {3}", regmatch.group(1), regmatch.group(3), regmatch.group(5), regmatch.group(10)))
 
 
 if __name__ == "__main__":
     #log = logDF('./1')
-    log = logDF('SMTP.log')
+    log = logDF('./1/SMTP-Activity-181020.log')
     print([i for i in range(0, 10)])
     print(log.df)
