@@ -2,6 +2,7 @@ import re
 import pandas as pd
 from tqdm import tqdm
 import os
+import glob
 import multiprocessing as mp
 
 class logDF():
@@ -31,8 +32,9 @@ class logDF():
 
     def run_parser(self, path='SMTP.log'):
         filelist = []
+        
         try: 
-            filelist = [str.format('{0}/{1}', path, filename) for filename in os.listdir(path)]
+            filelist = glob.glob(str.format('{0}\\*', path))
         except:
             filelist.append(path)
         for fi in filelist:
@@ -42,7 +44,7 @@ class logDF():
             with open(fi, 'rb+') as f:
                 nextLineByte = f.tell()
                 for line in f:
-                    jobs.append(pool.apply_async(self.process_wrapper, [nextLineByte, path]))
+                    jobs.append(pool.apply_async(self.process_wrapper, [nextLineByte, fi]))
                     nextLineByte = f.tell()   
             self.buffer = filter(lambda a: a != None, [job.get() for job in jobs])
             pool.close()
@@ -56,7 +58,8 @@ class logDF():
             self.df = pd.DataFrame(tmp)
         else:
             self.dFrame.append(tmp, ignore_index=True)
-        self.buffer = []
+        print(self.dFrame)
+        self.__buffer = []
 
 
     def nicePrint(self, regmatch):
@@ -64,7 +67,7 @@ class logDF():
 
 
 if __name__ == "__main__":
-    #log = logDF('./1')
-    log = logDF('./1/SMTP-Activity-181020.log')
+    log = logDF('./1')
+    #log = logDF('./1/SMTP-Activity-181020.log')
     print([i for i in range(0, 10)])
     print(log.df)
