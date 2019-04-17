@@ -5,7 +5,7 @@ import os
 import glob
 import multiprocessing as mp
 
-class logDF():
+class Parser():
     __buffer = None
 
     def __init__(self, dir=None):
@@ -67,11 +67,6 @@ class logDF():
             self.df = None
             #self.dFrame = pd.DataFrame()# self.dFrame()
 
-    def concatDF(self, df):
-        if (len(self.dFrame) == 0):
-            self.df = pd.DataFrame(df)
-        else:
-            self.dFrame.append(df, ignore_index=True)
 
     def appendDF(self):
         tmp = pd.DataFrame(self.buffer)
@@ -90,9 +85,27 @@ class logDF():
     def nicePrint(self, regmatch):
         print(str.format("Time {0}", regmatch.group(1)))
 
+class Analisis():
+
+    def __init__(self, path='.\\CSV', dir=True):
+        self.df = None
+        self.loadCSV(path)
+
+
+    def loadCSV(self, path, dir=True)
+        if dir:
+            filelist = glob.glob(str.format("{0}\\*", path))
+
+            
+    def addDF(self, df):
+        if (len(self.df) == 0):
+            self.df = pd.DataFrame(df)
+        else:
+            self.df.append(df, ignore_index=True)
+
 
 if __name__ == "__main__":
-    log = logDF('./1')
+    log = Parser('./1')
     #log = logDF('./1/SMTP-Activity-181020.log')
     print([i for i in range(0, 10)])
     print(log.df)
