@@ -4,6 +4,7 @@ from tqdm import tqdm
 import os
 import glob
 import multiprocessing as mp
+import ipaddress as ip
 
 class Parser():
     __buffer = None
@@ -69,7 +70,7 @@ class Parser():
 
 
     def appendDF(self):
-        tmp = pd.DataFrame(self.buffer)
+        tmp = pd.DataFrame(self.__buffer)
         for i in [4, 7, 8, 9]:
             del tmp[i]
         if (len(self.dFrame) == 0):
@@ -88,24 +89,44 @@ class Parser():
 class Analisis():
 
     def __init__(self, path='.\\CSV', dir=True):
-        self.df = None
+        self.df = pd.DataFrame()
         self.loadCSV(path)
+        self.getCountry()
+        
 
-
-    def loadCSV(self, path, dir=True)
+    def loadCSV(self, path, dir=True):
         if dir:
             filelist = glob.glob(str.format("{0}\\*", path))
+        else:
+            filelist = path
+        for i in filelist:
+            print(i)
+            self.appendDF(pd.read_csv(i, delimiter="&", index_col=0))
+            print(self.df)
 
             
-    def addDF(self, df):
+    def appendDF(self, df):
         if (len(self.df) == 0):
             self.df = pd.DataFrame(df)
         else:
-            self.df.append(df, ignore_index=True)
+            self.df = self.df.append(df, ignore_index=True)
+
+    def getCountry(self):
+        cData = pd.read_csv("GeoIPCountryWhois.csv", delimiter=',', names=["ipS", "ipE", "intS", "intE", "Cnt", "Country"])
+        del cData['intS']
+        del cData['intE']
+        cData['ipS'] = cData['ipS'].apply(lambda x: ip.ip_address(x))
+        cData['ipE'] = cData['ipE'].apply(lambda x: ip.ip_address(x))
+        self.df['3'] = self.df['3'].apply(lambda x: ip.ip_address(x))
+        print(cData)
+        #print(ip.ip_address(cData['ipS'][1]) < ip.ip_address(self.df['3'][1]))
+        #cData.loc(cData['ipS'] < ip.ip_address(self.df['3'][1]))
+        
 
 
 if __name__ == "__main__":
-    log = Parser('./1')
+    Anal = Analisis()
+    #log = Parser('./1')
     #log = logDF('./1/SMTP-Activity-181020.log')
-    print([i for i in range(0, 10)])
-    print(log.df)
+    #print([i for i in range(0, 10)])
+    #print(log.df)
