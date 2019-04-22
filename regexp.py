@@ -26,9 +26,11 @@ class Parser():
             try: 
                 f.seek(lineByte)
                 line = f.readline()
-                reg = re.search(r"(\d{2}/\d{2}/\d{2} \d\d:\d\d:\d\d)(?!\s\d)(.+)(?<=\d\s)(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})(\s{2})?(?(4)|\s([A-Z]{4})\s([^\s]{4,}))(\s)?(?(7) ((.)+(?!\d)) | *)\s(.{1,})(?<!\d)(\d{1,})\s(\d{1,})\s((.)+)", line)
+                reg = line.split('	')
+                #reg = re.search(r"(\d{2}/\d{2}/\d{2} \d\d:\d\d:\d\d)(?!\s\d)(.+)(?<=\d\s)(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})(\s{2})?(?(4)|\s([A-Z]{4})\s([^\s]{4,}))(\s)?(?(7) ((.)+(?!\d)) | *)\s(.{1,})(?<!\d)(\d{1,})\s(\d{1,})\s((.)+)", line)
                 try:
-                    return {i : reg.group(i) for i in range(1, 14)}
+                    return reg
+                    #return {i : reg.group(i) for i in range(1, 14)}
                 except:
                     return None
             except:
@@ -46,19 +48,22 @@ class Parser():
             filelist.append(path)
         for fi in filelist:
             print('Parse file', fi)
-            pool = mp.Pool(2)#mp.cpu_count())
+            pool = mp.Pool(mp.cpu_count())
             jobs = []
             with open(fi, 'rb+') as f:
                 print(os.path.basename(f.name))
                 nextLineByte = f.tell()
+            
                 for line in f:
                     jobs.append(pool.apply_async(self.process_wrapper, [nextLineByte, fi]))
                     nextLineByte = f.tell()   
-            self.__buffer = filter(fil, [job.get() for job in jobs])
+            self.__buffer = filter(fil, [job.get() for job in jobs[1:-1]])
             pool.close()
             tmp = pd.DataFrame(self.__buffer)
-            for i in [4, 7, 8, 9]:
-                del tmp[i]
+            del tmp[11]
+            #for i in [4, 7, 8, 9]:
+            #    del tmp[i]
+            print(tmp)
             self.df = tmp.copy()
             del tmp
             
@@ -125,8 +130,8 @@ class Analisis():
 
 
 if __name__ == "__main__":
-    Anal = Analisis()
-    #log = Parser('./1')
+    #Anal = Analisis()
+    log = Parser('./1')
     #log = logDF('./1/SMTP-Activity-181020.log')
     #print([i for i in range(0, 10)])
     #print(log.df)
