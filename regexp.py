@@ -5,6 +5,8 @@ import os
 import glob
 import multiprocessing as mp
 import ipaddress as ip
+import settings
+
 
 class Parser():
     __buffer = None
@@ -93,23 +95,37 @@ class Parser():
 
 class Analisis():
 
-    def __init__(self, path='.\\CSV', dir=True):
+    def __init__(self, path='.\\CSV', dir=True, spamFilter=True):
         self.df = pd.DataFrame()
-        self.loadCSV(path)
-        self.getCountry()
+        self.bl = pd.DataFrame()
+        self.loadCSV(path, spamFilter=spamFilter)
+        if spamFilter:
+            self.loadBan()
+            self.saveBan()
+        print(self.df)
         
 
-    def loadCSV(self, path, dir=True):
+    def loadCSV(self, path, dir=True, spamFilter=True):
         if dir:
             filelist = glob.glob(str.format("{0}\\*", path))
         else:
             filelist = path
         for i in filelist:
             print(i)
-            self.appendDF(pd.read_csv(i, delimiter="&", index_col=0))
-            print(self.df)
+            if spamFilter:
+                self.appendDF(self.filterSpam(pd.read_csv(i, delimiter="&", index_col=0), fname=i))
+            else:
+                self.appendDF((pd.read_csv(i, delimiter="&", index_col=0)))
 
-            
+    def loadBan(self, path='banlist.txt'):
+        try:
+            self.bl = pd.read_csv(path, delimiter=',', index_col=0)
+        except:
+            pass
+
+    def saveBan(self, path='banlist.txt'):
+        self.bl.to_csv(path, sep=',', encoding='utf-8')
+
     def appendDF(self, df):
         if (len(self.df) == 0):
             self.df = pd.DataFrame(df)
@@ -120,18 +136,32 @@ class Analisis():
         cData = pd.read_csv("GeoIPCountryWhois.csv", delimiter=',', names=["ipS", "ipE", "intS", "intE", "Cnt", "Country"])
         del cData['intS']
         del cData['intE']
-        cData['ipS'] = cData['ipS'].apply(lambda x: ip.ip_address(x))
-        cData['ipE'] = cData['ipE'].apply(lambda x: ip.ip_address(x))
-        self.df['3'] = self.df['3'].apply(lambda x: ip.ip_address(x))
+        self.df['11'] = self.df['3'].apply(lambda x: ip.ip_address(x))
         print(cData)
         #print(ip.ip_address(cData['ipS'][1]) < ip.ip_address(self.df['3'][1]))
         #cData.loc(cData['ipS'] < ip.ip_address(self.df['3'][1]))
         
+    def filterSpam(self, dataframe, fname='Ban'):
+        self.Spam(dataframe)
+        print(os.path.basename(fname))
+        dataframe[dataframe['4'].isin(self.bl['4'])].to_csv(str.format('./SPAM/{0}', os.path.basename(fname)), sep='&', encoding='utf-8')
+        return dataframe[~dataframe['4'].isin(self.bl['4'])]
 
+    def Spam(self, dataframe):
+        while len(dataframe) > 0:
+            tmp = dataframe[:min(len(dataframe), settings.range)].groupby('4')['0'].count().reset_index()
+            #print(tmp)
+            dataframe = dataframe.drop(dataframe.index[:min(len(dataframe), settings.range)])
+            self.bl = self.bl.append(tmp[tmp['0'] > settings.countforban])
+            #self.bl = self.bl.append(pd.DataFrame((tmp[(tmp > settings.countforban) & ~tmp.index[:].isin(self.bl)])), ignore_index=True)
+            self.bl = self.bl.groupby('4').sum().reset_index()
+            print(self.bl)
+            del tmp
 
 if __name__ == "__main__":
-    #Anal = Analisis()
     log = Parser('./1')
+    del log
+    Anal = Analisis(path='.\\CSV', spamFilter=True)
     #log = logDF('./1/SMTP-Activity-181020.log')
     #print([i for i in range(0, 10)])
     #print(log.df)
