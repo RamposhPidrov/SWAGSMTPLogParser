@@ -82,7 +82,10 @@ class Parser():
         try:
             ipAddr = ip.ip_address(ipAddr)
         except:
-            return None
+            try: 
+                ipAddr = ip.ip_address(str(ipAddr))
+            except:
+                return None
         high = len(cData) - 1
         found = False
         while low <= high and not found:
@@ -96,6 +99,7 @@ class Parser():
                     high = mid - 1
                 else:
                     low = mid + 1
+        #print(ipAddr)
         return None
 
     def getCountry(self):
