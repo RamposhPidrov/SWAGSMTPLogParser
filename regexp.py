@@ -15,6 +15,8 @@ class Parser():
 
     def __init__(self, dir=None):
         self.df = pd.DataFrame()
+        
+        self.cnt = pd.DataFrame()
         self.__buffer = []
         if dir:
             self.run_parser(path=dir)
@@ -79,6 +81,9 @@ class Parser():
 
     def binaryIpSearch(self, cData, ipAddr):
         low = 0
+        if  len(self.cnt) != 0 and len(self.cnt[self.cnt['ip'] == ipAddr]) != 0:
+            #print(type(self.cnt[self.cnt['ip'] == ipAddr]['cnt'].tolist()))
+            return self.cnt[self.cnt['ip'] == ipAddr]['cnt'].tolist()[0]
         try:
             ipAddr = ip.ip_address(ipAddr)
         except:
@@ -93,6 +98,7 @@ class Parser():
             mid = (low + high) // 2
             if ip.ip_address(cData['ipS'][mid]) < ipAddr and ip.ip_address(cData['ipE'][mid]) > ipAddr:
                 found = True
+                self.cnt = self.cnt.append({'ip' : str(ipAddr), 'cnt' : cData['Country'][mid]}, ignore_index=True)
                 return cData['Country'][mid]
             else:
                 if ipAddr < ip.ip_address(cData['ipS'][mid]):
@@ -133,18 +139,20 @@ class Analisis():
     def __init__(self, path='.\\CSV', dir=True, spamFilter=True):
         self.df = pd.DataFrame()
         self.bl = pd.DataFrame()
-        self.Ct = pd.Series()
         self.loadCSV(path, spamFilter=spamFilter)
         if spamFilter:
             self.loadBan()
             self.saveBan()
         #self.getCountry()
         print(self.df)
-        print(self.Ct)
         f, ax = plt.subplots(figsize=(20, 20))
         plot = sns.countplot(y="Cnt", data=self.df, color="c")
         fig = plot.get_figure()
         fig.savefig("output.png")
+        self.df['Date'] = self.df['0'].apply(lambda x: x.split(' ')[0])
+        plot = sns.countplot(y="Date", data=self.df, color="c")
+        fig = plot.get_figure()
+        fig.savefig("Date.png")
         #self.Ct.plot(kind='hist', title='Normally distributed random values')
         #plt.show()
         
@@ -176,37 +184,6 @@ class Analisis():
         else:
             self.df = self.df.append(df, ignore_index=True)
 
-    '''
-    выполняет бинарный поиск по cData в getCountry
-    cData - загруженный csv
-    ipAddr - айпишник уже преобразованный с помощью ip.ip_address()
-    return - название страны и ее код
-    '''
-    def binaryIpSearch(self, cData, ipAddr):
-        low = 0
-        high = len(cData) - 1
-        found = False
-        while low <= high and not found:
-            print(ipAddr)
-            mid = (low + high) // 2
-            if ip.ip_address(cData['ipS'][mid]) < ipAddr and ip.ip_address(cData['ipE'][mid]) > ipAddr:
-                found = True
-                return cData['Country'][mid], cData['Cnt'][mid]
-            else:
-                if ipAddr < ip.ip_address(cData['ipS'][mid]):
-                    high = mid - 1
-                else:
-                    low = mid + 1
-        return None
-
-    def getCountry(self):
-        cData = pd.read_csv("GeoIPCountryWhois.csv", delimiter=',', names=["ipS", "ipE", "intS", "intE", "Cnt", "Country"])
-        #cData['ipS'] = cData['ipS'].apply(lambda x: ip.ip_address(x)) 
-        #cData['ipE'] = cData['ipE'].apply(lambda x: ip.ip_address(x)) 
-        self.df['12'] = self.df['4'].apply(lambda x: self.binaryIpSearch(cData, ip.ip_address(x)))
-        #print(ip.ip_address(cData['ipS'][1]) < ip.ip_address(self.df['3'][1]))
-        #cData.loc(cData['ipS'] < ip.ip_address(self.df['3'][1]))
-        
     def filterSpam(self, dataframe, fname='Ban'):
         self.SpamPolicy1(dataframe)
         print(os.path.basename(fname))
