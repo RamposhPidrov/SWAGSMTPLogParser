@@ -15,9 +15,9 @@ class Parser():
         self.df = pd.DataFrame()
         self.__buffer = []
         if dir:
-            self.run_parser(path=dir) 
+            self.run_parser(path=dir)
         else:
-            self.run_parser()   
+            self.run_parser()
 
     @property
     def dFrame(self):
@@ -25,7 +25,7 @@ class Parser():
 
     def process_wrapper(self, lineByte, path):
         with open(path, 'r+') as f:
-            try: 
+            try:
                 f.seek(lineByte)
                 line = f.readline()
                 reg = line.split('	')
@@ -102,6 +102,7 @@ class Analisis():
         if spamFilter:
             self.loadBan()
             self.saveBan()
+        self.getCountry()
         print(self.df)
         
 
@@ -132,12 +133,32 @@ class Analisis():
         else:
             self.df = self.df.append(df, ignore_index=True)
 
+    '''
+    выполняет бинарный поиск по cData в getCountry
+    cData - загруженный csv
+    ipAddr - айпишник уже преобразованный с помощью ip.ip_address()
+    return - название страны и ее код
+    '''
+    def binaryIpSearch(self, cData, ipAddr):
+        low = 0
+        high = len(cData) - 1
+        found = False
+        while low <= high and not found:
+            print(ipAddr)
+            mid = (low + high) // 2
+            if ip.ip_address(cData['ipS'][mid]) < ipAddr and ip.ip_address(cData['ipE'][mid]) > ipAddr:
+                found = True
+                return cData['Country'][mid], cData['Cnt'][mid]
+            else:
+                if ipAddr < ip.ip_address(cData['ipS'][mid]):
+                    high = mid - 1
+                else:
+                    low = mid + 1
+        return None
+
     def getCountry(self):
         cData = pd.read_csv("GeoIPCountryWhois.csv", delimiter=',', names=["ipS", "ipE", "intS", "intE", "Cnt", "Country"])
-        del cData['intS']
-        del cData['intE']
-        self.df['11'] = self.df['3'].apply(lambda x: ip.ip_address(x))
-        print(cData)
+        self.df['12'] = self.df['4'].apply(lambda x: self.binaryIpSearch(cData, ip.ip_address(x)))
         #print(ip.ip_address(cData['ipS'][1]) < ip.ip_address(self.df['3'][1]))
         #cData.loc(cData['ipS'] < ip.ip_address(self.df['3'][1]))
         
@@ -155,7 +176,7 @@ class Analisis():
             self.bl = self.bl.append(tmp[tmp['0'] > settings.countforban])
             #self.bl = self.bl.append(pd.DataFrame((tmp[(tmp > settings.countforban) & ~tmp.index[:].isin(self.bl)])), ignore_index=True)
             self.bl = self.bl.groupby('4').sum().reset_index()
-            print(self.bl)
+            #print(self.bl)
             del tmp
 
 if __name__ == "__main__":
@@ -165,3 +186,4 @@ if __name__ == "__main__":
     #log = logDF('./1/SMTP-Activity-181020.log')
     #print([i for i in range(0, 10)])
     #print(log.df)
+    an = Analisis()
