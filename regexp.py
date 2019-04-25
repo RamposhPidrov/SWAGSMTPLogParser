@@ -6,6 +6,8 @@ import glob
 import multiprocessing as mp
 import ipaddress as ip
 import settings
+import seaborn as sns
+import matplotlib.pyplot as plt
 
 
 class Parser():
@@ -59,7 +61,7 @@ class Parser():
                 for line in f:
                     jobs.append(pool.apply_async(self.process_wrapper, [nextLineByte, fi]))
                     nextLineByte = f.tell()   
-            self.__buffer = filter(fil, [job.get() for job in jobs[1:-1]])
+            self.__buffer = filter(fil, [job.get() for job in jobs[1:-2]])
             pool.close()
             tmp = pd.DataFrame(self.__buffer)
             del tmp[11]
@@ -68,13 +70,42 @@ class Parser():
             print(tmp)
             self.df = tmp.copy()
             del tmp
-            
+            self.getCountry()
             self.__buffer = []
             #self.appendDF()   
             self.saveSCV(os.path.basename(f.name))
             self.df = None
             #self.dFrame = pd.DataFrame()# self.dFrame()
 
+    def binaryIpSearch(self, cData, ipAddr):
+        low = 0
+        try:
+            ipAddr = ip.ip_address(ipAddr)
+        except:
+            return None
+        high = len(cData) - 1
+        found = False
+        while low <= high and not found:
+            #print(ipAddr)
+            mid = (low + high) // 2
+            if ip.ip_address(cData['ipS'][mid]) < ipAddr and ip.ip_address(cData['ipE'][mid]) > ipAddr:
+                found = True
+                return cData['Country'][mid]
+            else:
+                if ipAddr < ip.ip_address(cData['ipS'][mid]):
+                    high = mid - 1
+                else:
+                    low = mid + 1
+        return None
+
+    def getCountry(self):
+        print('cnt')
+        cData = pd.read_csv("GeoIPCountryWhois.csv", delimiter=',', names=["ipS", "ipE", "intS", "intE", "Cnt", "Country"])
+        #cData['ipS'] = cData['ipS'].apply(lambda x: ip.ip_address(x)) 
+        #cData['ipE'] = cData['ipE'].apply(lambda x: ip.ip_address(x)) 
+        self.df['Cnt'] = self.df[4].apply(lambda x: self.binaryIpSearch(cData, x))
+        #print(ip.ip_address(cData['ipS'][1]) < ip.ip_address(self.df['3'][1]))
+        #cData.loc(cData['ipS'] < ip.ip_address(self.df['3'][1]))
 
     def appendDF(self):
         tmp = pd.DataFrame(self.__buffer)
@@ -98,12 +129,20 @@ class Analisis():
     def __init__(self, path='.\\CSV', dir=True, spamFilter=True):
         self.df = pd.DataFrame()
         self.bl = pd.DataFrame()
+        self.Ct = pd.Series()
         self.loadCSV(path, spamFilter=spamFilter)
         if spamFilter:
             self.loadBan()
             self.saveBan()
-        self.getCountry()
+        #self.getCountry()
         print(self.df)
+        print(self.Ct)
+        f, ax = plt.subplots(figsize=(20, 20))
+        plot = sns.countplot(y="Cnt", data=self.df, color="c")
+        fig = plot.get_figure()
+        fig.savefig("output.png")
+        #self.Ct.plot(kind='hist', title='Normally distributed random values')
+        #plt.show()
         
 
     def loadCSV(self, path, dir=True, spamFilter=True):
@@ -158,17 +197,20 @@ class Analisis():
 
     def getCountry(self):
         cData = pd.read_csv("GeoIPCountryWhois.csv", delimiter=',', names=["ipS", "ipE", "intS", "intE", "Cnt", "Country"])
+        #cData['ipS'] = cData['ipS'].apply(lambda x: ip.ip_address(x)) 
+        #cData['ipE'] = cData['ipE'].apply(lambda x: ip.ip_address(x)) 
         self.df['12'] = self.df['4'].apply(lambda x: self.binaryIpSearch(cData, ip.ip_address(x)))
         #print(ip.ip_address(cData['ipS'][1]) < ip.ip_address(self.df['3'][1]))
         #cData.loc(cData['ipS'] < ip.ip_address(self.df['3'][1]))
         
     def filterSpam(self, dataframe, fname='Ban'):
-        self.Spam(dataframe)
+        self.SpamPolicy1(dataframe)
         print(os.path.basename(fname))
         dataframe[dataframe['4'].isin(self.bl['4'])].to_csv(str.format('./SPAM/{0}', os.path.basename(fname)), sep='&', encoding='utf-8')
         return dataframe[~dataframe['4'].isin(self.bl['4'])]
 
-    def Spam(self, dataframe):
+    def SpamPolicy1(self, dataframe):
+        le = len(dataframe)
         while len(dataframe) > 0:
             tmp = dataframe[:min(len(dataframe), settings.range)].groupby('4')['0'].count().reset_index()
             #print(tmp)
@@ -179,6 +221,7 @@ class Analisis():
             #print(self.bl)
             del tmp
 
+
 if __name__ == "__main__":
     log = Parser('./1')
     del log
@@ -186,4 +229,4 @@ if __name__ == "__main__":
     #log = logDF('./1/SMTP-Activity-181020.log')
     #print([i for i in range(0, 10)])
     #print(log.df)
-    an = Analisis()
+    #an = Analisis()
