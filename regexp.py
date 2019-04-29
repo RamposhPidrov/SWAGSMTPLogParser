@@ -8,6 +8,7 @@ import ipaddress as ip
 import settings
 import seaborn as sns
 import matplotlib.pyplot as plt
+import sys
 
 
 class Parser():
@@ -204,10 +205,14 @@ class Analisis():
 
 
 if __name__ == "__main__":
-    log = Parser('./1')
-    del log
-    Anal = Analisis(path='.\\CSV', spamFilter=True)
-    #log = logDF('./1/SMTP-Activity-181020.log')
-    #print([i for i in range(0, 10)])
-    #print(log.df)
-    #an = Analisis()
+    if sys.argv[1] == None:
+        print('Формат ввода: [Директория с логами]')
+    else:        
+        print('Going to parse log files from:' + sys.argv[1])
+        log = Parser(sys.argv[1])
+        del log
+        Anal = Analisis(path='.\\CSV', spamFilter=True)
+        #log = logDF('./1/SMTP-Activity-181020.log')
+        #print([i for i in range(0, 10)])
+        #print(log.df)
+        #an = Analisis()
