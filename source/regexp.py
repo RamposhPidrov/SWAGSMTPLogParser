@@ -1,6 +1,5 @@
 import re
 import pandas as pd
-from tqdm import tqdm
 import os
 import glob
 import multiprocessing as mp
@@ -48,20 +47,19 @@ class Parser():
         filelist = []
         fil = lambda a: a != None
         try: 
-            parsed = glob.glob(str.format('.\\{0}\\*', 'CSV'))
-            print(parsed)
-            filelist = filter(lambda x: str.format(".\\CSV\\{0}{1}", os.path.basename(x), '.csv') not in parsed,  
+            parsed = glob.glob(str.format('{0}\\*', os.path.join(settings.parentDir, 'CSV')))
+            print("Уже обработаны: \n", parsed)
+            filelist = filter(lambda x: str.format("{2}\\{0}{1}", os.path.basename(x), '.csv', os.path.join(settings.parentDir, 'CSV')) not in parsed,  
                                     glob.glob(str.format('{0}\\*', path)))
         except:
-            filelist.append(path)
+            filelist.append(glob.glob(path))
         for fi in filelist:
-            print('Parse file', fi)
+            print('Parse file (30-60 sec)', fi)
             pool = mp.Pool(mp.cpu_count())
             jobs = []
             with open(fi, 'rb+') as f:
                 print(os.path.basename(f.name))
                 nextLineByte = f.tell()
-            
                 for line in f:
                     jobs.append(pool.apply_async(self.process_wrapper, [nextLineByte, fi]))
                     nextLineByte = f.tell()   
@@ -111,13 +109,10 @@ class Parser():
         return None
 
     def getCountry(self):
-        print('cnt')
-        cData = pd.read_csv("GeoIPCountryWhois.csv", delimiter=',', names=["ipS", "ipE", "intS", "intE", "Cnt", "Country"])
-        #cData['ipS'] = cData['ipS'].apply(lambda x: ip.ip_address(x)) 
-        #cData['ipE'] = cData['ipE'].apply(lambda x: ip.ip_address(x)) 
+        print('Соотносим IP и страну (2-3 мин, надо было написать алгоритм получше)')
+        cData = pd.read_csv(os.path.join(settings.parentDir, "GeoIPCountryWhois.csv"), delimiter=',', names=["ipS", "ipE", "intS", "intE", "Cnt", "Country"])
         self.df['Cnt'] = self.df[4].apply(lambda x: self.binaryIpSearch(cData, x))
-        #print(ip.ip_address(cData['ipS'][1]) < ip.ip_address(self.df['3'][1]))
-        #cData.loc(cData['ipS'] < ip.ip_address(self.df['3'][1]))
+
 
     def appendDF(self):
         tmp = pd.DataFrame(self.__buffer)
@@ -131,14 +126,13 @@ class Parser():
         self.__buffer = []
 
     def saveSCV(self, fname):
-        self.dFrame.to_csv(str.format('./CSV/{0}.csv', fname), sep='&', encoding='utf-8')
 
-    def nicePrint(self, regmatch):
-        print(str.format("Time {0}", regmatch.group(1)))
+        self.dFrame.to_csv(str.format('{1}/{0}.csv', fname, os.path.join(settings.parentDir, 'CSV')), sep='&', encoding='utf-8')
+
 
 class Analisis():
 
-    def __init__(self, path='.\\CSV', dir=True, spamFilter=True):
+    def __init__(self, path=os.path.join(settings.parentDir, 'CSV'), dir=True, spamFilter=True):
         self.df = pd.DataFrame()
         self.bl = pd.DataFrame()
         self.loadCSV(path, spamFilter=spamFilter)
@@ -150,11 +144,11 @@ class Analisis():
         f, ax = plt.subplots(figsize=(20, 20))
         plot = sns.countplot(y="Cnt", data=self.df, color="c")
         fig = plot.get_figure()
-        fig.savefig("output.png")
+        fig.savefig(os.path.join(settings.parentDir, "Country.png"))
         self.df['Date'] = self.df['0'].apply(lambda x: x.split(' ')[0])
         plot = sns.countplot(y="Date", data=self.df, color="c")
         fig = plot.get_figure()
-        fig.savefig("Date.png")
+        fig.savefig(os.path.join(settings.parentDir, "Date.png"))
         #self.Ct.plot(kind='hist', title='Normally distributed random values')
         #plt.show()
         
@@ -165,7 +159,7 @@ class Analisis():
         else:
             filelist = path
         for i in filelist:
-            print(i)
+            print("Выгружаем: ", i)
             if spamFilter:
                 self.appendDF(self.filterSpam(pd.read_csv(i, delimiter="&", index_col=0), fname=i))
             else:
@@ -188,8 +182,8 @@ class Analisis():
 
     def filterSpam(self, dataframe, fname='Ban'):
         self.SpamPolicy1(dataframe)
-        print(os.path.basename(fname))
-        dataframe[dataframe['4'].isin(self.bl['4'])].to_csv(str.format('./SPAM/{0}', os.path.basename(fname)), sep='&', encoding='utf-8')
+        #print(os.path.basename(fname))
+        dataframe[dataframe['4'].isin(self.bl['4'])].to_csv(str.format('{1}/{0}', os.path.basename(fname), os.path.join(settings.parentDir, 'SPAM')), sep='&', encoding='utf-8')
         return dataframe[~dataframe['4'].isin(self.bl['4'])]
 
     def SpamPolicy1(self, dataframe):
@@ -206,6 +200,11 @@ class Analisis():
 
 
 if __name__ == "__main__":
+    print(settings.parentDir )
+    if not os.path.exists(os.path.join(settings.parentDir, 'CSV')):
+            os.makedirs(os.path.join(settings.parentDir, 'CSV'))
+    if not os.path.exists(os.path.join(settings.parentDir, 'SPAM')):
+        os.makedirs(os.path.join(settings.parentDir, 'SPAM'))
     f = Figlet(font='slant')
     authors = [
         'Коренев Дмитрий ИБАС 168-1',
@@ -215,21 +214,25 @@ if __name__ == "__main__":
         'Сиюткин Дмитрий ИБАС 168-1',
         'Щукин Сергей ИБАС 168-1'
     ]
+    print(f.renderText('LOG ANALYZER'))
+    print(f.renderText('by IBAS 168-1'))
+    print('Работу выполнили:')
+    for a in authors:
+        print('\t' + a)
     while True:
+        
+        
+        directory = input('Введите путь до директории с .log файлами:')
+        print('Статистика лог файлов будет выведена в Date.png и County.png в корне с программой')
+        print('Going to parse log files from:' + directory)
         try:
-            print(f.renderText('LOG ANALYZER'))
-            print(f.renderText('by IBAS 168-1'))
-            print('Работу выполнили:')
-            for a in authors:
-                print('\t' + a)
-            directory = input('Введите путь до директории с .log файлами:')
-            print('Статистика лог файлов будет выведена в Date.png и output.png в корне с программой')
-            print('Going to parse log files from:' + directory)
             log = Parser(directory)
-            del log
-            Anal = Analisis(path='.\\CSV', spamFilter=True)
         except:
             print('Формат директории неверен!')
+        del log
+        l = lambda x: False if x == 'y' else True 
+        Analis = Analisis(path=os.path.join(settings.parentDir, 'CSV'), spamFilter=l(input("Выключить спам фильтр? (y/n) ")))
+        
         #log = logDF('./1/SMTP-Activity-181020.log')
         #print([i for i in range(0, 10)])
         #print(log.df)
