@@ -9,6 +9,7 @@ import settings
 import seaborn as sns
 import matplotlib.pyplot as plt
 import sys
+from pyfiglet import Figlet
 
 
 class Parser():
@@ -205,13 +206,30 @@ class Analisis():
 
 
 if __name__ == "__main__":
-    if sys.argv[1] == None:
-        print('Формат ввода: [Директория с логами]')
-    else:        
-        print('Going to parse log files from:' + sys.argv[1])
-        log = Parser(sys.argv[1])
-        del log
-        Anal = Analisis(path='.\\CSV', spamFilter=True)
+    f = Figlet(font='slant')
+    authors = [
+        'Коренев Дмитрий ИБАС 168-1',
+        'Петров Роман ИБАС 168-1',
+        'Урбан Назар ИБАС 168-1',
+        'Жомов Юрий ИБАС 168-1',
+        'Сиюткин Дмитрий ИБАС 168-1',
+        'Щукин Сергей ИБАС 168-1'
+    ]
+    while True:
+        try:
+            print(f.renderText('LOG ANALYZER'))
+            print(f.renderText('by IBAS 168-1'))
+            print('Работу выполнили:')
+            for a in authors:
+                print('\t' + a)
+            directory = input('Введите путь до директории с .log файлами:')
+            print('Статистика лог файлов будет выведена в Date.png и output.png в корне с программой')
+            print('Going to parse log files from:' + directory)
+            log = Parser(directory)
+            del log
+            Anal = Analisis(path='.\\CSV', spamFilter=True)
+        except:
+            print('Формат директории неверен!')
         #log = logDF('./1/SMTP-Activity-181020.log')
         #print([i for i in range(0, 10)])
         #print(log.df)
